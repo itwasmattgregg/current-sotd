@@ -7,7 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     TZ=America/Chicago \
     DOWNLOAD_DIR=/downloads \
     LOG_DIR=/data \
-    CRON=0 7 * * *
+    CRON="0 7 * * *"
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends tzdata \
