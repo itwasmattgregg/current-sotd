@@ -27,7 +27,7 @@ from app.logging_util import get_log_lines, setup_logging
 
 APP_DIR = Path(__file__).resolve().parent
 TZ_NAME = os.environ.get("TZ", "America/Chicago")
-CRON = os.environ.get("CRON", "0 7 * * *")
+CRON = os.environ.get("CRON", "0 7 * * *").strip().strip("'\"")
 LOG_DIR = Path(os.environ.get("LOG_DIR", "/data"))
 
 logger = setup_logging(LOG_DIR)

@@ -4,10 +4,13 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - TZ=America/Chicago
-      - DOWNLOAD_DIR=/downloads
-      - LOG_DIR=/data
-      - CRON=0 7 * * *
+      TZ: America/Chicago
+      DOWNLOAD_DIR: /downloads
+      LOG_DIR: /data
+      CRON: "0 7 * * *"
+      MUSICBRAINZ_ENABLED: "true"
+      # Optional: email/URL for MusicBrainz API User-Agent
+      # MUSICBRAINZ_CONTACT: you@example.com
     volumes:
       # Change this host path to your NAS shared music folder
       - ./downloads:/downloads

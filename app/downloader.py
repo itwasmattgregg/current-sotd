@@ -14,6 +14,8 @@ from urllib.parse import unquote
 
 import httpx
 
+from app.tagger import tag_downloaded_file
+
 FEED_URL = "https://feeds.publicradio.org/public_feeds/song-of-the-day"
 USER_AGENT = "current-sotd/1.0 (+https://www.thecurrent.org/song-of-the-day)"
 
@@ -176,6 +178,7 @@ def download_episode(
         tmp.replace(dest)
         size = dest.stat().st_size
         log(f"OK saved {dest.name} ({size} bytes)")
+        tag_result = tag_downloaded_file(dest, episode.title, log=log)
         return {
             "status": "downloaded",
             "filename": dest.name,
@@ -184,6 +187,7 @@ def download_episode(
             "date": episode.date_str,
             "size": size,
             "message": f"Downloaded {dest.name}",
+            "tags": tag_result,
         }
     except Exception as exc:
         if tmp.exists():

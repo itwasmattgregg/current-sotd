@@ -7,6 +7,7 @@ Docker app that downloads [89.3 The Current](https://www.thecurrent.org/) Song o
 - Pulls MP3s from the official podcast RSS feed: `https://feeds.publicradio.org/public_feeds/song-of-the-day`
 - Runs a scheduled download daily at **7:00 AM America/Chicago** (configurable)
 - Saves files as `YYYY-MM-DD - Artist - Title.mp3` into a mounted folder
+- After each new download, looks up the track on [MusicBrainz](https://musicbrainz.org/) and writes ID3 tags (title, artist, album, year, MBIDs, cover art when available)
 - UI at port **8080**: local library, this week’s available feed episodes, manual download, and logs
 
 The RSS feed only keeps about a week of episodes. The **Downloaded on NAS** list grows over time as the daily job runs.
@@ -28,7 +29,7 @@ The RSS feed only keeps about a week of episodes. The **Downloaded on NAS** list
 
 3. Open `http://<nas-ip>:8080`
 
-4. Click **Download today’s song** once to verify, then check the Logs panel.
+4. Click **Download today’s song** once to verify, then check the Logs panel for `TAGGED` or `MusicBrainz` lines.
 
 ## Configuration
 
@@ -38,6 +39,8 @@ The RSS feed only keeps about a week of episodes. The **Downloaded on NAS** list
 | `CRON` | `0 7 * * *` | When to download (5-field cron) |
 | `DOWNLOAD_DIR` | `/downloads` | Inside-container MP3 path |
 | `LOG_DIR` | `/data` | Log file directory |
+| `MUSICBRAINZ_ENABLED` | `true` | Tag new downloads via MusicBrainz + mutagen |
+| `MUSICBRAINZ_CONTACT` | _(empty)_ | Optional email/URL included in the MusicBrainz User-Agent |
 
 ## Local development
 

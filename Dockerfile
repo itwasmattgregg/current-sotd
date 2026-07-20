@@ -7,7 +7,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     TZ=America/Chicago \
     DOWNLOAD_DIR=/downloads \
     LOG_DIR=/data \
-    CRON="0 7 * * *"
+    CRON="0 7 * * *" \
+    MUSICBRAINZ_ENABLED=true
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends tzdata \
@@ -23,3 +24,4 @@ RUN mkdir -p /downloads /data
 EXPOSE 8080
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+
