@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Song of the Day</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main>
+    <header class="header">
+      <h1>Song of the Day</h1>
+      <p class="subtitle">89.3 The Current · auto-download for NAS</p>
+    </header>
+
+    <section class="panel" id="status-panel">
+      <div class="panel-head">
+        <h2>Status</h2>
+        <button type="button" id="btn-latest" class="btn primary">Download today’s song</button>
+      </div>
+      <dl class="meta">
+        <div><dt>Timezone</dt><dd id="meta-tz">{{ tz }}</dd></div>
+        <div><dt>Schedule</dt><dd id="meta-cron">{{ cron }}</dd></div>
+        <div><dt>Next run</dt><dd id="meta-next">—</dd></div>
+        <div><dt>Last run</dt><dd id="meta-last">—</dd></div>
+      </dl>
+      <p class="last-result" id="last-result"></p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Downloaded on NAS</h2>
+        <button type="button" class="btn" data-refresh>Refresh</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>File</th><th>Size</th><th></th></tr>
+          </thead>
+          <tbody id="downloads-body">
+            <tr><td colspan="3" class="muted">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Available this week</h2>
+        <button type="button" class="btn" data-refresh>Refresh</button>
+      </div>
+      <p class="note">Only episodes still in the RSS feed (~last week). Older tracks drop off the feed.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Date</th><th>Title</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody id="feed-body">
+            <tr><td colspan="4" class="muted">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Logs</h2>
+        <button type="button" class="btn" data-refresh>Refresh</button>
+      </div>
+      <pre class="logs" id="logs" aria-live="polite">Loading…</pre>
+    </section>
+  </main>
+
+  <script>
+    function fmtSize(n) {
+      if (n == null) return "—";
+      if (n < 1024) return n + " B";
+      if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+      return (n / (1024 * 1024)).toFixed(1) + " MB";
+    }
+
+    function esc(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    async function loadStatus() {
+      const r = await fetch("/api/status");
+      const data = await r.json();
+      document.getElementById("meta-tz").textContent = data.timezone || "—";
+      document.getElementById("meta-cron").textContent = data.cron || "—";
+      document.getElementById("meta-next").textContent = data.next_run || "—";
+      const last = data.last_run;
+      if (last && last.at) {
+        const msg = last.result && last.result.message ? last.result.message : "";
+        document.getElementById("meta-last").textContent =
+          last.at + (last.trigger ? " (" + last.trigger + ")" : "");
+        document.getElementById("last-result").textContent = msg;
+      } else {
+        document.getElementById("meta-last").textContent = "Never";
+        document.getElementById("last-result").textContent = "";
+      }
+    }
+
+    async function loadDownloads() {
+      const r = await fetch("/api/downloads");
+      const data = await r.json();
+      const body = document.getElementById("downloads-body");
+      if (!data.items || !data.items.length) {
+        body.innerHTML = '<tr><td colspan="3" class="muted">No files yet</td></tr>';
+        return;
+      }
+      body.innerHTML = data.items.map(function (item) {
+        return (
+          "<tr>" +
+          "<td>" + esc(item.filename) + "</td>" +
+          "<td>" + fmtSize(item.size) + "</td>" +
+          '<td><a class="btn link" href="/files/' + encodeURIComponent(item.filename) + '">Play</a></td>' +
+          "</tr>"
+        );
+      }).join("");
+    }
+
+    async function loadFeed() {
+      const r = await fetch("/api/feed");
+      const data = await r.json();
+      const body = document.getElementById("feed-body");
+      if (!data.items || !data.items.length) {
+        body.innerHTML = '<tr><td colspan="4" class="muted">Feed empty or unreachable</td></tr>';
+        return;
+      }
+      body.innerHTML = data.items.map(function (item) {
+        const badge = item.downloaded
+          ? '<span class="badge ok">Downloaded</span>'
+          : '<span class="badge miss">Missing</span>';
+        const action = item.downloaded
+          ? '<a class="btn link" href="/files/' + encodeURIComponent(item.filename) + '">Play</a>'
+          : '<button type="button" class="btn primary" data-guid="' + esc(item.guid) + '">Download</button>';
+        return (
+          "<tr>" +
+          "<td>" + esc(item.date) + "</td>" +
+          "<td>" + esc(item.title) + "</td>" +
+          "<td>" + badge + "</td>" +
+          "<td>" + action + "</td>" +
+          "</tr>"
+        );
+      }).join("");
+    }
+
+    async function loadLogs() {
+      const r = await fetch("/api/logs");
+      const data = await r.json();
+      const el = document.getElementById("logs");
+      const lines = data.lines || [];
+      el.textContent = lines.length ? lines.join("\n") : "(no log lines yet)";
+      el.scrollTop = el.scrollHeight;
+    }
+
+    async function refreshAll() {
+      await Promise.all([loadStatus(), loadDownloads(), loadFeed(), loadLogs()]);
+    }
+
+    document.getElementById("btn-latest").addEventListener("click", async function () {
+      const btn = this;
+      btn.disabled = true;
+      try {
+        await fetch("/api/download/latest", { method: "POST" });
+        await refreshAll();
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("feed-body").addEventListener("click", async function (e) {
+      const btn = e.target.closest("[data-guid]");
+      if (!btn) return;
+      btn.disabled = true;
+      try {
+        const guid = btn.getAttribute("data-guid");
+        await fetch("/api/download/" + encodeURIComponent(guid), { method: "POST" });
+        await refreshAll();
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.querySelectorAll("[data-refresh]").forEach(function (btn) {
+      btn.addEventListener("click", refreshAll);
+    });
+
+    refreshAll();
+    setInterval(loadLogs, 5000);
+    setInterval(loadStatus, 30000);
+  </script>
+</body>
+</html>
