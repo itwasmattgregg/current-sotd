@@ -1,4 +1,4 @@
-# Song of the Day NAS Downloader
+# Song of the Day Docker Job for 89.3 The Current
 
 Docker app that downloads [89.3 The Current](https://www.thecurrent.org/) Song of the Day every day and serves a small web UI on your NAS.
 
