@@ -9,6 +9,10 @@ services:
       LOG_DIR: /data
       CRON: "0 7 * * *"
       MUSICBRAINZ_ENABLED: "true"
+      # Extra lookups for label, catalog number, barcode, genre, composer
+      MUSICBRAINZ_DEEP_METADATA: "true"
+      # ID3v2 minor version to write; 3 is the safest for NAS media servers
+      ID3_VERSION: "3"
       # Optional: email/URL for MusicBrainz API User-Agent
       # MUSICBRAINZ_CONTACT: you@example.com
     volumes:

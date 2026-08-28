@@ -247,5 +247,38 @@ def feed_with_status(download_dir: Path) -> list[dict]:
     return rows
 
 
+def title_from_filename(filename: str) -> str:
+    """'2024-05-01 - Bon Iver - Skinny Love.mp3' -> 'Bon Iver - Skinny Love'."""
+    stem = Path(filename).stem
+    return re.sub(r"^\d{4}-\d{2}-\d{2}\s*-\s*", "", stem).strip()
+
+
+def retag_file(download_dir: Path, filename: str, *, log: LogFn = _noop_log) -> dict:
+    """Re-run the MusicBrainz lookup for one already-downloaded file."""
+    if "/" in filename or "\\" in filename or filename in (".", ".."):
+        return {"status": "error", "filename": filename, "message": "Invalid filename"}
+    path = download_dir / filename
+    if not path.is_file():
+        return {"status": "error", "filename": filename, "message": "File not found"}
+    rss_title = title_from_filename(filename)
+    log(f"RETAG {filename} (query: {rss_title})")
+    return {"status": "ok", "filename": filename, "tags": tag_downloaded_file(path, rss_title, log=log)}
+
+
+def retag_all(download_dir: Path, *, log: LogFn = _noop_log) -> dict:
+    """Re-tag every local MP3. Slow (MusicBrainz allows ~1 request/second)."""
+    files = sorted(p.name for p in download_dir.glob("*.mp3") if p.is_file())
+    log(f"RETAG ALL starting for {len(files)} file(s)")
+    tagged = failed = 0
+    for name in files:
+        result = retag_file(download_dir, name, log=log)
+        if result.get("tags", {}).get("status") == "tagged":
+            tagged += 1
+        else:
+            failed += 1
+    log(f"RETAG ALL done: {tagged} tagged, {failed} unchanged")
+    return {"status": "ok", "total": len(files), "tagged": tagged, "failed": failed}
+
+
 def get_download_dir() -> Path:
     return Path(os.environ.get("DOWNLOAD_DIR", "/downloads"))

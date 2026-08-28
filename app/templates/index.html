@@ -30,7 +30,10 @@
     <section class="panel">
       <div class="panel-head">
         <h2>Downloaded on NAS</h2>
-        <button type="button" class="btn" data-refresh>Refresh</button>
+        <div class="panel-actions">
+          <button type="button" id="btn-retag-all" class="btn">Re-tag all</button>
+          <button type="button" class="btn" data-refresh>Refresh</button>
+        </div>
       </div>
       <div class="table-wrap">
         <table>
@@ -118,7 +121,8 @@
           "<tr>" +
           "<td>" + esc(item.filename) + "</td>" +
           "<td>" + fmtSize(item.size) + "</td>" +
-          '<td><a class="btn link" href="/files/' + encodeURIComponent(item.filename) + '">Play</a></td>' +
+          '<td><a class="btn link" href="/files/' + encodeURIComponent(item.filename) + '">Play</a> ' +
+          '<button type="button" class="btn" data-retag="' + esc(item.filename) + '">Re-tag</button></td>' +
           "</tr>"
         );
       }).join("");
@@ -182,6 +186,35 @@
         const guid = btn.getAttribute("data-guid");
         await fetch("/api/download/" + encodeURIComponent(guid), { method: "POST" });
         await refreshAll();
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("downloads-body").addEventListener("click", async function (e) {
+      const btn = e.target.closest("[data-retag]");
+      if (!btn) return;
+      btn.disabled = true;
+      const label = btn.textContent;
+      btn.textContent = "Tagging…";
+      try {
+        await fetch("/api/retag/" + encodeURIComponent(btn.getAttribute("data-retag")), {
+          method: "POST",
+        });
+        await refreshAll();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = label;
+      }
+    });
+
+    document.getElementById("btn-retag-all").addEventListener("click", async function () {
+      if (!confirm("Re-tag every downloaded file? MusicBrainz allows about one lookup per second, so this runs in the background.")) return;
+      const btn = this;
+      btn.disabled = true;
+      try {
+        await fetch("/api/retag-all", { method: "POST" });
+        await loadLogs();
       } finally {
         btn.disabled = false;
       }

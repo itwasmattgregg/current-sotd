@@ -8,7 +8,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     DOWNLOAD_DIR=/downloads \
     LOG_DIR=/data \
     CRON="0 7 * * *" \
-    MUSICBRAINZ_ENABLED=true
+    MUSICBRAINZ_ENABLED=true \
+    MUSICBRAINZ_DEEP_METADATA=true \
+    ID3_VERSION=3
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends tzdata \

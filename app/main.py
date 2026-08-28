@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -22,6 +22,8 @@ from app.downloader import (
     feed_with_status,
     get_download_dir,
     list_local_downloads,
+    retag_all,
+    retag_file,
 )
 from app.logging_util import get_log_lines, setup_logging
 
@@ -154,6 +156,24 @@ def api_download_guid(guid: str):
     if result.get("status") == "error" and "not in current feed" in result.get("message", ""):
         raise HTTPException(status_code=404, detail=result["message"])
     return result
+
+
+@app.post("/api/retag/{filename}")
+def api_retag(filename: str):
+    """Re-run the MusicBrainz lookup for one file already on disk."""
+    result = retag_file(get_download_dir(), filename, log=_log)
+    if result.get("status") == "error":
+        raise HTTPException(status_code=404, detail=result["message"])
+    return result
+
+
+@app.post("/api/retag-all")
+def api_retag_all(background: BackgroundTasks):
+    """Re-tag the whole library in the background (~10s per track)."""
+    download_dir = get_download_dir()
+    count = len(list(download_dir.glob("*.mp3")))
+    background.add_task(retag_all, download_dir, log=_log)
+    return {"status": "started", "total": count}
 
 
 @app.get("/api/logs")
