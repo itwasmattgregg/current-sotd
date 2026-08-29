@@ -58,6 +58,12 @@ main {
   margin-bottom: 0.75rem;
 }
 
+.panel-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .panel-head h2 {
   margin: 0;
   font-size: 1.05rem;
