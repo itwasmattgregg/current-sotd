@@ -140,6 +140,34 @@ def episode_is_downloaded(download_dir: Path, episode: Episode) -> bool:
     return find_existing_for_date(download_dir, episode.date_str) is not None
 
 
+def ensure_download_dir(download_dir: Path) -> None:
+    """Create download_dir if needed and verify it is writable.
+
+    A broken Docker bind mount (host folder deleted/recreated while the
+    container kept the old mount) often shows up as FileNotFoundError on
+    write even though mkdir appears to succeed — catch that early.
+    """
+    try:
+        download_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise RuntimeError(
+            f"Cannot create download dir {download_dir}: {exc}. "
+            "Check the host path exists and the container volume mount, "
+            "then recreate the container (docker compose up -d --force-recreate)."
+        ) from exc
+
+    probe = download_dir / ".write-test"
+    try:
+        probe.write_bytes(b"")
+        probe.unlink(missing_ok=True)
+    except OSError as exc:
+        raise RuntimeError(
+            f"Download dir {download_dir} is not writable ({exc}). "
+            "If you recreated the host downloads folder, recreate the "
+            "container so Docker remounts it: docker compose up -d --force-recreate"
+        ) from exc
+
+
 def download_episode(
     episode: Episode,
     download_dir: Path,
@@ -147,7 +175,18 @@ def download_episode(
     log: LogFn = _noop_log,
     client: httpx.Client | None = None,
 ) -> dict:
-    download_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        ensure_download_dir(download_dir)
+    except RuntimeError as exc:
+        log(f"ERROR {exc}")
+        return {
+            "status": "error",
+            "guid": episode.guid,
+            "title": episode.title,
+            "date": episode.date_str,
+            "message": str(exc),
+        }
+
     dest = download_dir / episode.filename
 
     existing = find_existing_for_date(download_dir, episode.date_str)
@@ -168,7 +207,7 @@ def download_episode(
         client = httpx.Client(follow_redirects=True, timeout=120.0, headers={"User-Agent": USER_AGENT})
     assert client is not None
 
-    tmp = dest.with_suffix(".mp3.partial")
+    tmp = dest.with_suffix(dest.suffix + ".partial")
     try:
         with client.stream("GET", episode.enclosure_url) as resp:
             resp.raise_for_status()
